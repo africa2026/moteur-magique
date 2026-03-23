@@ -1,0 +1,35 @@
+MOTEUR DE RÉDACTION MAGIQUE v4.0
+==================================
+Versione Finale - "The Pioneer AI Research Assistant"
+
+INSTALLAZIONE E AVVIO
+---------------------
+
+PREREQUISITI:
+- Python 3.8 o superiore installato
+- Connessione internet attiva (per la prima installazione e le ricerche online)
+
+ISTRUZIONI RAPIDE (Linux/Mac):
+1. Apri il terminale in questa cartella
+2. Esegui il comando: ./start_moteur.sh
+3. Il sistema si avvierà e aprirà l'interfaccia nel browser
+
+ISTRUZIONI RAPIDE (Windows):
+1. Entra nella cartella 'backend'
+2. Installa le dipendenze: pip install -r requirements.txt
+3. Avvia il server: python src/main.py
+4. Apri il browser su: http://localhost:5000
+
+FUNZIONALITÀ PRINCIPALI:
+- Ricerca Multi-Fonte: Accademica, Istituzionale, Web
+- Insight Intelligenti: Analisi automatica per Ricercatori, Giornalisti e Pastorale
+- Modalità Offline: Supporto per Ollama (se installato localmente)
+- Esportazione: Salva i risultati e le analisi
+
+NOTE TECNICHE:
+- Il sistema usa una cache locale in /tmp/search_cache per velocizzare le ricerche ripetute.
+- I log di sistema sono visibili nel terminale per diagnosi.
+
+CREDITI:
+Elaborata da Padre Alphonse Owoudou, salesiano, con alcuni giovani, usando gli algoritmi di Manus AI.
+Marzo - Novembre 2025.
