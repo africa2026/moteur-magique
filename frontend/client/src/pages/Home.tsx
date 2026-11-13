@@ -74,30 +74,54 @@ export default function Home() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Errore server: ${response.status}`);
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.error || `Errore server: ${response.status}`);
       }
 
-      const data = await response.json();
-      
+      // Le backend renvoie désormais une liste plate de documents.
+      // On tolère aussi l'ancien format imbriqué ({ results: { results: [...] } }).
+      const rawResults: any[] = Array.isArray(data.results)
+        ? data.results
+        : Array.isArray(data.results?.results)
+          ? data.results.results
+          : [];
+
       // Transform API response to UI format
       // NO MOCK DATA - ONLY REAL RESULTS
-      const transformedResults = data.results.map((item: any, index: number) => ({
+      const transformedResults = rawResults.map((item: any) => ({
         title: item.title || "Documento senza titolo",
         source: item.source || "Fonte sconosciuta",
         type: item.type || "DOCUMENTO",
-        relevance: Math.round((item.confidence || item.score || 0) * 1), // Use confidence directly if available
-        snippet: item.snippet || item.content?.substring(0, 300) + "...",
+        relevance:
+          typeof item.relevance_score === "number"
+            ? Math.round(item.relevance_score)
+            : Math.round((item.confidence || item.score || 0) * 100),
+        snippet:
+          item.snippet ||
+          item.abstract ||
+          (item.content ? `${item.content.substring(0, 300)}...` : ""),
         citations: item.citations || 0,
         url: item.url
       }));
 
       setResults(transformedResults);
       setKnowledgeScore(prev => prev + (transformedResults.length * 50));
-      
+
+      if (transformedResults.length === 0) {
+        setError(
+          "Nessun risultato trovato. Verifica la connessione ai motori di ricerca o prova un'altra domanda."
+        );
+      }
+
     } catch (err) {
       console.error("Search error:", err);
-      setError("Errore di connessione al cervello centrale. Riprovare.");
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Errore di connessione al cervello centrale. Riprovare."
+      );
     } finally {
       setIsSearching(false);
     }

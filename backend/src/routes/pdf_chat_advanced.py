@@ -11,17 +11,37 @@ import logging
 import os
 import json
 from typing import List, Dict, Any, Optional
-import openai
 
 # Setup logging
 logger = logging.getLogger(__name__)
+
+# Import opzionale: il pacchetto `openai` deve essere installato (requirements.txt)
+# ma l'applicazione deve poter avviarsi anche se manca o se la chiave non è configurata.
+try:
+    import openai
+
+    OPENAI_AVAILABLE = True
+except ImportError:  # pragma: no cover - dipende dall'ambiente di deploy
+    openai = None
+    OPENAI_AVAILABLE = False
+    logger.warning(
+        "Pacchetto 'openai' non installato: il chat PDF userà la modalità di fallback."
+    )
 
 # Blueprint per chat PDF
 pdf_chat_advanced_bp = Blueprint('pdf_chat_advanced', __name__)
 
 # Configurazione OpenAI
-openai.api_key = os.getenv('OPENAI_API_KEY')
-openai.api_base = os.getenv('OPENAI_API_BASE')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_CONFIGURED = bool(OPENAI_AVAILABLE and OPENAI_API_KEY and OPENAI_API_KEY.strip())
+
+if OPENAI_CONFIGURED:
+    openai.api_key = OPENAI_API_KEY
+    openai.api_base = os.getenv('OPENAI_API_BASE')
+else:
+    logger.info(
+        "OPENAI_API_KEY non configurata: il chat PDF userà la modalità di fallback."
+    )
 
 class PDFChatEngine:
     """
@@ -278,6 +298,11 @@ Rispondi alla domanda basandoti sul contenuto del documento. Se citi parti speci
 """
         
         try:
+            if not OPENAI_CONFIGURED:
+                raise RuntimeError(
+                    "OPENAI_API_KEY non configurata (o pacchetto openai mancante)"
+                )
+
             response = openai.ChatCompletion.create(
                 model="gpt-4",
                 messages=[

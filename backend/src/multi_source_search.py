@@ -20,6 +20,38 @@ from src.insight_engine import insight_engine
 
 logger = logging.getLogger(__name__)
 
+
+def _load_ddgs():
+    """
+    Charge le client DuckDuckGo.
+
+    Le paquet historique s'appelle `duckduckgo-search` (import
+    `duckduckgo_search`) ; il est remplacé par `ddgs` (import `ddgs`).
+    On supporte les deux pour ne pas dépendre d'une version précise.
+
+    Aucune installation à l'exécution : les dépendances doivent être
+    déclarées dans requirements.txt (un `pip install` lancé depuis le serveur
+    échoue sur Render ou sur tout environnement Python managé).
+    """
+    try:
+        from ddgs import DDGS
+
+        return DDGS
+    except ImportError:
+        pass
+
+    try:
+        from duckduckgo_search import DDGS
+
+        return DDGS
+    except ImportError:
+        logger.error(
+            "Client DuckDuckGo introuvable : installez les dépendances "
+            "(`pip install -r requirements.txt`), les moteurs web seront ignorés."
+        )
+        return None
+
+
 class MultiSourceSearchEngine:
     """
     Motore di ricerca avanzato che interroga simultaneamente:
@@ -125,7 +157,8 @@ class MultiSourceSearchEngine:
             },
             'google_scholar': {
                 'name': 'Google Scholar',
-                'enabled': True,
+                # Désactivé : pas d'API publique (le scraping est contraire aux CGU).
+                'enabled': False,
                 'priority': 10,
                 'type': 'academic'
             },
@@ -166,13 +199,15 @@ class MultiSourceSearchEngine:
             },
             'base': {
                 'name': 'BASE (Bielefeld)',
-                'enabled': True,
+                # Désactivé : API non implémentée (nécessite une clé IP).
+                'enabled': False,
                 'priority': 6,
                 'type': 'academic'
             },
             'doaj': {
                 'name': 'DOAJ',
-                'enabled': True,
+                # Désactivé : API non implémentée (doaj.org/api).
+                'enabled': False,
                 'priority': 6,
                 'type': 'academic'
             },
@@ -341,8 +376,16 @@ class MultiSourceSearchEngine:
                 return self._search_uqac(query, filters)
             elif engine_id == 'theses_fr':
                 return self._search_theses_fr(query, filters)
-            elif engine_id in ['vatican', 'sep', 'cairn', 'persee', 'openedition', 'gallica', 'gutenberg']:
-                return self._search_generic_site(engine_id, query, filters)
+            elif engine_id in [
+                'vatican', 'sep', 'cairn', 'persee', 'openedition',
+                'gallica', 'gutenberg', 'sdb_org', 'donboscosanto',
+            ]:
+                # Correction: la signature attend (query, filters, engine_config).
+                # L'ancien appel passait engine_id à la place de la config, d'où
+                # un KeyError 'base_url' sur ces 7 moteurs.
+                return self._search_generic_site(
+                    query, filters, self.search_engines.get(engine_id, {})
+                )
             else:
                 logger.warning(f"Motore {engine_id} non implementato")
                 return []
@@ -655,7 +698,9 @@ class MultiSourceSearchEngine:
         """Ricerca su DuckDuckGo (Real Implementation)"""
         
         try:
-            from duckduckgo_search import DDGS
+            DDGS = _load_ddgs()
+            if DDGS is None:
+                return []
             
             results = []
             with DDGS() as ddgs:
@@ -674,16 +719,6 @@ class MultiSourceSearchEngine:
                     results.append(result)
             
             return results
-            
-        except ImportError:
-            logger.warning("duckduckgo_search module not found. Installing...")
-            try:
-                import subprocess
-                subprocess.check_call(["pip", "install", "duckduckgo-search"])
-                return self._search_duckduckgo(query, filters)
-            except Exception as e:
-                logger.error(f"Failed to install duckduckgo-search: {str(e)}")
-                return []
                 
         except Exception as e:
             logger.error(f"Errore DuckDuckGo: {str(e)}")
@@ -711,19 +746,29 @@ class MultiSourceSearchEngine:
 
     def _search_generic_site(self, query: str, filters: Optional[Dict], engine_config: Dict) -> List[Dict]:
         """Ricerca generica su un sito specifico (usando DuckDuckGo con site:)"""
-        domain = engine_config['base_url'].replace('https://', '').replace('http://', '').split('/')[0]
-        source_name = engine_config['name']
+        base_url = (engine_config or {}).get('base_url')
+        
+        if not base_url:
+            engine_name = (engine_config or {}).get('name', '?')
+            logger.warning(f"Motore '{engine_name}' senza base_url: ricerca ignorata")
+            return []
+        
+        domain = base_url.replace('https://', '').replace('http://', '').split('/')[0]
+        source_name = engine_config.get('name', domain)
         category = "RISORSA_WEB"
-        if engine_config['type'] == 'institutional': category = "FONTE_ISTITUZIONALE"
-        elif engine_config['type'] == 'academic_source': category = "STUDIO_ACCADEMICO"
-        elif engine_config['type'] == 'archive': category = "FONTE_PRIMARIA"
+        if engine_config.get('type') == 'institutional': category = "FONTE_ISTITUZIONALE"
+        elif engine_config.get('type') == 'academic_source': category = "STUDIO_ACCADEMICO"
+        elif engine_config.get('type') == 'archive': category = "FONTE_PRIMARIA"
+        elif engine_config.get('type') == 'salesian': category = "FONTE_ISTITUZIONALE"
         
         return self._search_site_specific(query, domain, source_name, category)
 
     def _search_site_specific(self, query: str, domain: str, source_name: str, category: str) -> List[Dict]:
         """Helper per cercare su un dominio specifico usando DuckDuckGo"""
         try:
-            from duckduckgo_search import DDGS
+            DDGS = _load_ddgs()
+            if DDGS is None:
+                return []
             site_query = f"site:{domain} {query}"
             results = []
             

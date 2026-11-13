@@ -103,22 +103,58 @@ def health_check():
 
 # Route pour les langues supportées
 @app.route('/api/languages', methods=['GET'])
-def get_supported_languages():
+def list_supported_languages():
     """Retourne les langues supportées pour l'interface multilingue"""
     try:
-        from src.multilingual_search import get_supported_languages
+        from src.multilingual_search import (
+            get_default_language,
+            get_supported_languages,
+        )
         
         languages = get_supported_languages()
         
         return jsonify({
             'success': True,
             'languages': languages,
-            'default_language': 'it',
+            'default_language': get_default_language(),
             'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
         logger.error(f"Erreur lors de la récupération des langues: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+# Route de détection de langue (utilisée pour adapter la recherche)
+@app.route('/api/languages/detect', methods=['POST'])
+def detect_text_language():
+    """Détecte la langue d'un texte (heuristique locale, sans appel externe)"""
+    try:
+        from src.multilingual_search import detect_language, is_supported_language
+        
+        data = request.get_json(silent=True) or {}
+        text = (data.get('text') or '').strip()
+        
+        if not text:
+            return jsonify({
+                'success': False,
+                'error': 'Texte requis'
+            }), 400
+        
+        language = detect_language(text)
+        
+        return jsonify({
+            'success': True,
+            'language': language,
+            'supported': is_supported_language(language),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Erreur lors de la détection de langue: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e),
