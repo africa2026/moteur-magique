@@ -5,3 +5,9 @@ beautifulsoup4==4.12.2
 PyPDF2==3.0.1
 werkzeug==3.0.1
 gunicorn==21.2.0
+# Client OpenAI (utilisé par backend/src/routes/pdf_chat_advanced.py).
+# Version 0.28.x : le code utilise l'API historique (openai.ChatCompletion).
+openai==0.28.1
+# Recherche web DuckDuckGo (moteur web + recherches "site:").
+# Remplace l'ancien `duckduckgo-search`, installé jusqu'ici... au runtime.
+ddgs==9.16.1

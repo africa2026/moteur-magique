@@ -56,47 +56,8 @@ def upload_pdf():
         }), 500
 
 
-@pdf_chat_bp.route('/chat', methods=['POST'])
-def chat_with_pdf():
-    """
-    Chat with PDF
-    
-    POST /api/pdf/chat
-    Body: {
-        "file_id": "PDF-xxx",
-        "message": "What is this about?"
-    }
-    """
-    
-    try:
-        data = request.get_json()
-        
-        file_id = data.get('file_id')
-        message = data.get('message')
-        
-        if not file_id or not message:
-            return jsonify({
-                'success': False,
-                'error': 'file_id and message required'
-            }), 400
-        
-        # Mock response
-        response = {
-            'success': True,
-            'response': f'Risposta alla domanda: {message}',
-            'citations': [
-                {
-                    'page': 1,
-                    'text': 'Testo citato...'
-                }
-            ]
-        }
-        
-        return jsonify(response)
-        
-    except Exception as e:
-        logger.error(f"Errore chat PDF: {str(e)}")
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+# NB: la route POST /api/pdf/chat est fournie par
+# backend/src/routes/pdf_chat_advanced.py (implémentation réelle avec contexte
+# documentaire). Une ancienne version "mock" était déclarée ici et, étant
+# enregistrée en premier, masquait l'implémentation réelle. Elle a été supprimée.
+
